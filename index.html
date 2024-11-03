@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Election Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 800px;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .form-section, .voter-section {
+            margin-top: 20px;
+        }
+        select, input[type="text"], button {
+            padding: 10px;
+            margin: 5px 0;
+            width: 100%;
+            max-width: 400px;
+        }
+        .candidate-list {
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Election Dashboard</h1>
+        
+        <div class="form-section" id="login-section">
+            <h2>Karyakarta Login</h2>
+            <input type="text" id="karyakartaId" placeholder="Enter Unique Karyakarta ID" required>
+            <button onclick="loginKaryakarta()">Login</button>
+        </div>
+
+        <div class="form-section" id="selection-section" style="display:none;">
+            <h2>Select Location and Candidate</h2>
+            
+            <select id="stateSelect" onchange="fetchDistricts()">
+                <option value="">Select State</option>
+            </select>
+            
+            <select id="districtSelect" onchange="fetchTalukas()">
+                <option value="">Select District</option>
+            </select>
+            
+            <select id="talukaSelect" onchange="fetchVillages()">
+                <option value="">Select Taluka</option>
+            </select>
+            
+            <select id="villageSelect" onchange="fetchCandidates()">
+                <option value="">Select Village</option>
+            </select>
+            
+            <!-- New input field for voter ID -->
+            <input type="text" id="voterId" placeholder="Enter Unique Voter ID" required>
+            <!-- New input field for voter name -->
+            <input type="text" id="voterName" placeholder="Enter Voter Name" required>
+
+            <div class="candidate-list" id="candidateList"></div>
+            
+            <button onclick="markVoterChoice()">Mark Voter Choice</button>
+        </div>
+    </div>
+
+    <!-- Load Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAuXtqmRWS8WYJfdtkRT9ae92cPhkvdFMA",
+            authDomain: "voterpro.firebaseapp.com",
+            projectId: "voterpro",
+            storageBucket: "voterpro.firebasestorage.app",
+            messagingSenderId: "53447474373",
+            appId: "1:53447474373:web:373ed783079fb8f374c4ac",
+            measurementId: "G-CNYTME5VQ0"
+        };
+
+        // Initialize Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        let currentKaryakartaId = '';
+
+        // Karyakarta Login
+        function loginKaryakarta() {
+            const karyakartaIdInput = document.getElementById('karyakartaId').value.trim();
+            const karyakartaRef = database.ref('electionData/karyakartas/' + karyakartaIdInput);
+            
+            karyakartaRef.once('value').then((snapshot) => {
+                if (snapshot.exists()) {
+                    currentKaryakartaId = karyakartaIdInput;
+                    document.getElementById('login-section').style.display = 'none';
+                    document.getElementById('selection-section').style.display = 'block';
+                    alert("Login successful! Welcome, " + snapshot.val().name);
+                    fetchStates(); // Fetch states after successful login
+                } else {
+                    alert("Invalid Karyakarta ID. Please try again.");
+                }
+            }).catch((error) => {
+                console.error("Error fetching Karyakarta data:", error);
+                alert("An error occurred while logging in. Please try again later.");
+            });
+        }
+
+        // Fetch States, Districts, Talukas, Villages, and Candidates
+        function fetchStates() {
+            const stateSelect = document.getElementById('stateSelect');
+            database.ref('electionData').once('value', (snapshot) => {
+                snapshot.forEach((state) => {
+                    const option = document.createElement('option');
+                    option.value = state.key;
+                    option.textContent = state.key;
+                    stateSelect.appendChild(option);
+                });
+            });
+        }
+
+        function fetchDistricts() {
+            const districtSelect = document.getElementById('districtSelect');
+            const state = document.getElementById('stateSelect').value;
+            districtSelect.innerHTML = '<option value="">Select District</option>';
+            database.ref(`electionData/${state}/districts`).once('value', (snapshot) => {
+                snapshot.forEach((district) => {
+                    const option = document.createElement('option');
+                    option.value = district.key;
+                    option.textContent = district.key;
+                    districtSelect.appendChild(option);
+                });
+            });
+        }
+
+        function fetchTalukas() {
+            const talukaSelect = document.getElementById('talukaSelect');
+            const state = document.getElementById('stateSelect').value;
+            const district = document.getElementById('districtSelect').value;
+            talukaSelect.innerHTML = '<option value="">Select Taluka</option>';
+            database.ref(`electionData/${state}/districts/${district}/talukas`).once('value', (snapshot) => {
+                snapshot.forEach((taluka) => {
+                    const option = document.createElement('option');
+                    option.value = taluka.key;
+                    option.textContent = taluka.key;
+                    talukaSelect.appendChild(option);
+                });
+            });
+        }
+
+        function fetchVillages() {
+            const villageSelect = document.getElementById('villageSelect');
+            const state = document.getElementById('stateSelect').value;
+            const district = document.getElementById('districtSelect').value;
+            const taluka = document.getElementById('talukaSelect').value;
+            villageSelect.innerHTML = '<option value="">Select Village</option>';
+            database.ref(`electionData/${state}/districts/${district}/talukas/${taluka}/villages`).once('value', (snapshot) => {
+                snapshot.forEach((village) => {
+                    const option = document.createElement('option');
+                    option.value = village.key;
+                    option.textContent = village.key;
+                    villageSelect.appendChild(option);
+                });
+            });
+        }
+
+        function fetchCandidates() {
+            const villageSelect = document.getElementById('villageSelect').value;
+            const state = document.getElementById('stateSelect').value;
+            const district = document.getElementById('districtSelect').value;
+            const taluka = document.getElementById('talukaSelect').value;
+            const candidateListDiv = document.getElementById('candidateList');
+            candidateListDiv.innerHTML = '';
+            database.ref(`electionData/${state}/districts/${district}/talukas/${taluka}/villages/${villageSelect}/candidates`).once('value', (snapshot) => {
+                snapshot.forEach((candidate) => {
+                    const label = document.createElement('label');
+                    label.innerHTML = `<input type="radio" name="candidate" value="${candidate.val()}"> ${candidate.val()}`;
+                    candidateListDiv.appendChild(label);
+                });
+            });
+        }
+
+        // Mark Voter Choice
+        function markVoterChoice() {
+            const voterId = document.getElementById('voterId').value.trim();
+            const voterName = document.getElementById('voterName').value.trim();
+            const villageSelect = document.getElementById('villageSelect').value;
+            const selectedCandidate = document.querySelector('input[name="candidate"]:checked');
+            
+            if (!voterId) {
+                alert("Please enter a unique voter ID.");
+                return;
+            }
+            if (!voterName) {
+                alert("Please enter a voter name.");
+                return;
+            }
+            if (!selectedCandidate) {
+                alert("Please select a candidate.");
+                return;
+            }
+            
+            const state = document.getElementById('stateSelect').value;
+            const district = document.getElementById('districtSelect').value;
+            const taluka = document.getElementById('talukaSelect').value;
+
+            // Reference to the voter in the database
+            const voterRef = database.ref(`electionData/${state}/districts/${district}/talukas/${taluka}/villages/${villageSelect}/voters/${voterId}`);
+
+            // Check for duplicate voter ID
+            voterRef.once('value').then((snapshot) => {
+                if (snapshot.exists()) {
+                    alert("Voter ID already marked. Please check the ID.");
+                    return;
+                } else {
+                    // Create a new voter entry
+                    voterRef.set({
+                        "markedByKaryakartaId": currentKaryakartaId, // Using exact key name
+                        "name": voterName, // Using exact key name
+                        "selectedCandidate": selectedCandidate.value // Using exact key name
+                    }).then(() => {
+                        alert("Vote marked successfully!");
+                    }).catch((error) => {
+                        console.error("Error marking vote:", error);
+                        alert("An error occurred while marking the vote. Please try again.");
+                    });
+                }
+            });
+        }
+    </script>
+</body>
+</html>

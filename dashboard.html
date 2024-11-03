@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Election Dashboard - Village Details</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f4f4f4;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 2.5em;
+        }
+
+        h2 {
+            color: #34495e;
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #2c3e50;
+            padding-bottom: 10px;
+        }
+
+        .form-section {
+            margin-top: 20px;
+        }
+
+        select {
+            padding: 12px;
+            margin: 10px 0;
+            width: 100%;
+            max-width: 400px;
+            border: 1px solid #bdc3c7;
+            border-radius: 5px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        select:focus {
+            border-color: #2980b9;
+            outline: none;
+        }
+
+        .card {
+            border: 1px solid #bdc3c7;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            background-color: #ecf0f1;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th,
+        td {
+            border: 1px solid #bdc3c7;
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #3498db;
+            color: #ffffff;
+            font-weight: bold;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        tr:hover {
+            background-color: #dfe6e9;
+        }
+
+        p {
+            margin: 5px 0;
+        }
+
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 2em;
+            }
+
+            h2 {
+                font-size: 1.3em;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Village Election Details</h1>
+
+        <div class="form-section" id="selection-section">
+            <h2>Select State, District, Taluka, and Village</h2>
+
+            <select id="stateSelect" onchange="fetchDistricts()">
+                <option value="">Select State</option>
+            </select>
+
+            <select id="districtSelect" onchange="fetchTalukas()">
+                <option value="">Select District</option>
+            </select>
+
+            <select id="talukaSelect" onchange="fetchVillages()">
+                <option value="">Select Taluka</option>
+            </select>
+
+            <select id="villageSelect" onchange="displayVillageDetails()">
+                <option value="">Select Village</option>
+            </select>
+
+            <div id="villageDetails"></div>
+        </div>
+    </div>
+
+    <!-- Load Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.14.0/firebase-app.js";
+        import { getDatabase, ref, get, child } from "https://www.gstatic.com/firebasejs/9.14.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAuXtqmRWS8WYJfdtkRT9ae92cPhkvdFMA",
+            authDomain: "voterpro.firebaseapp.com",
+            projectId: "voterpro",
+            storageBucket: "voterpro.appspot.com",
+            messagingSenderId: "53447474373",
+            appId: "1:53447474373:web:373ed783079fb8f374c4ac",
+            measurementId: "G-CNYTME5VQ0"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        // Define functions in the global scope
+        window.fetchStates = fetchStates;
+        window.fetchDistricts = fetchDistricts;
+        window.fetchTalukas = fetchTalukas;
+        window.fetchVillages = fetchVillages;
+        window.displayVillageDetails = displayVillageDetails;
+
+        window.onload = fetchStates;
+
+        function fetchStates() {
+            const stateSelect = document.getElementById('stateSelect');
+            get(child(ref(database), 'electionData')).then(snapshot => {
+                Object.keys(snapshot.val()).forEach(state => {
+                    const option = document.createElement('option');
+                    option.value = state;
+                    option.textContent = state;
+                    stateSelect.appendChild(option);
+                });
+            }).catch(error => console.error("Error fetching states: ", error));
+        }
+
+        function fetchDistricts() {
+            const districtSelect = document.getElementById('districtSelect');
+            const state = document.getElementById('stateSelect').value;
+            districtSelect.innerHTML = '<option value="">Select District</option>';
+            document.getElementById('talukaSelect').innerHTML = '<option value="">Select Taluka</option>';
+            document.getElementById('villageSelect').innerHTML = '<option value="">Select Village</option>';
+            if (state) {
+                get(child(ref(database), `electionData/${state}/districts`)).then(snapshot => {
+                    snapshot.forEach(districtSnapshot => {
+                        const option = document.createElement('option');
+                        option.value = districtSnapshot.key;
+                        option.textContent = districtSnapshot.key;
+                        districtSelect.appendChild(option);
+                    });
+                }).catch(error => console.error("Error fetching districts: ", error));
+            }
+        }
+
+        function fetchTalukas() {
+            const talukaSelect = document.getElementById('talukaSelect');
+            const state = document.getElementById('stateSelect').value;
+            const district = document.getElementById('districtSelect').value;
+            talukaSelect.innerHTML = '<option value="">Select Taluka</option>';
+            document.getElementById('villageSelect').innerHTML = '<option value="">Select Village</option>';
+            if (state && district) {
+                get(child(ref(database), `electionData/${state}/districts/${district}/talukas`)).then(snapshot => {
+                    snapshot.forEach(talukaSnapshot => {
+                        const option = document.createElement('option');
+                        option.value = talukaSnapshot.key;
+                        option.textContent = talukaSnapshot.key;
+                        talukaSelect.appendChild(option);
+                    });
+                }).catch(error => console.error("Error fetching talukas: ", error));
+            }
+        }
+
+        function fetchVillages() {
+            const villageSelect = document.getElementById('villageSelect');
+            const state = document.getElementById('stateSelect').value;
+            const district = document.getElementById('districtSelect').value;
+            const taluka = document.getElementById('talukaSelect').value;
+            villageSelect.innerHTML = '<option value="">Select Village</option>';
+            if (state && district && taluka) {
+                get(child(ref(database), `electionData/${state}/districts/${district}/talukas/${taluka}/villages`)).then(snapshot => {
+                    snapshot.forEach(villageSnapshot => {
+                        const option = document.createElement('option');
+                        option.value = villageSnapshot.key;
+                        option.textContent = villageSnapshot.key;
+                        villageSelect.appendChild(option);
+                    });
+                }).catch(error => console.error("Error fetching villages: ", error));
+            }
+        }
+
+        function displayVillageDetails() {
+            const villageSelect = document.getElementById('villageSelect').value;
+            const state = document.getElementById('stateSelect').value;
+            const district = document.getElementById('districtSelect').value;
+            const taluka = document.getElementById('talukaSelect').value;
+            const villageDetailsDiv = document.getElementById('villageDetails');
+            villageDetailsDiv.innerHTML = '';
+
+            if (villageSelect) {
+                get(child(ref(database), `electionData/${state}/districts/${district}/talukas/${taluka}/villages/${villageSelect}`)).then(snapshot => {
+                    if (snapshot.exists()) {
+                        const villageData = snapshot.val();
+                        const totalVoters = Object.keys(villageData.voters).length;
+                        const markedVoters = Object.values(villageData.voters).filter(voter => voter.marked).length;
+
+                        // Initialize an object to hold vote counts for each candidate
+                        const voteCounts = {};
+
+                        // Iterate through the voters of the village to count the votes for each candidate
+                        for (const voterId in villageData.voters) {
+                            const voter = villageData.voters[voterId];
+                            const selectedCandidate = voter.selectedCandidate;
+
+                            // Check if the candidate is selected
+                            if (selectedCandidate) {
+                                // Initialize the candidate's count if it doesn't exist
+                                if (!voteCounts[selectedCandidate]) {
+                                    voteCounts[selectedCandidate] = 0;
+                                }
+                                // Increment the count for the selected candidate
+                                voteCounts[selectedCandidate]++;
+                            }
+                        }
+
+                        // Convert the voteCounts object into an array for sorting and select leading candidates
+                        const leadingCandidates = Object.entries(voteCounts)
+                            .map(([name, votes]) => ({ name, votes }))
+                            .sort((a, b) => b.votes - a.votes)
+                            .slice(0, 2);
+
+                        // Display village info
+                                                villageDetailsDiv.innerHTML += `
+                            <div class="card">
+                                <h3>${villageSelect} - ${taluka}, ${district}, ${state}</h3>
+                                <p>Total Voters: ${totalVoters}</p>
+                                <p>Marked Voters: ${markedVoters}</p>
+                            </div>
+                        `;
+                        
+                                                // Display leading candidates
+                                                if (leadingCandidates.length) {
+                                                    const candidatesHTML = leadingCandidates.map(candidate => `<p>${candidate.name}: ${candidate.votes} votes</p>`).join('');
+                                                    villageDetailsDiv.innerHTML += `
+                                <div class="card">
+                                    <h3>Leading Candidates</h3>
+                                    ${candidatesHTML}
+                                </div>
+                            `;
+                                                }
+
+
+                        // Display voters' details
+                        const votersHTML = Object.entries(villageData.voters).map(([key, voter]) => `
+                            <tr>
+                                <td>${voter.name}</td>
+                                <td>${voter.markedByKaryakartaId}</td>
+                                <td>${voter.selectedCandidate}</td>
+                            </tr>
+                        `).join('');
+
+                        villageDetailsDiv.innerHTML += `
+                            <div class="card">
+                                <h3>Voter Details</h3>
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Voter Name</th>
+                                            <th>karyakartaId ID</th>
+                                            <th>Selected Candidate</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${votersHTML}
+                                    </tbody>
+                                </table>
+                            </div>
+                        `;
+                    } else {
+                        villageDetailsDiv.innerHTML = '<p>No data available for this village.</p>';
+                    }
+                }).catch(error => console.error("Error fetching village details: ", error));
+            }
+        }
+    </script>
+</body>
+
+</html>
