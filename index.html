@@ -202,7 +202,7 @@
             if (!voterId) {
                 alert("Please enter a unique voter ID.");
                 return;
-            }
+            }   
             if (!voterName) {
                 alert("Please enter a voter name.");
                 return;
@@ -218,6 +218,21 @@
 
             // Reference to the voter in the database
             const voterRef = database.ref(`electionData/${state}/districts/${district}/talukas/${taluka}/villages/${villageSelect}/voters/${voterId}`);
+
+
+            if (voterId === "NA") {
+        // Create a new voter entry without checking for duplicates
+        voterRef.set({
+            "markedByKaryakartaId": currentKaryakartaId, // Using exact key name
+            "name": voterName, // Using exact key name
+            "selectedCandidate": selectedCandidate.value // Using exact key name
+        }).then(() => {
+            alert("Vote marked successfully!");
+        }).catch((error) => {
+            console.error("Error marking vote:", error);
+            alert("An error occurred while marking the vote. Please try again.");
+        });
+        } else {
 
             // Check for duplicate voter ID
             voterRef.once('value').then((snapshot) => {
@@ -238,7 +253,7 @@
                     });
                 }
             });
-        }
+            }}
     </script>
 </body>
 </html>
